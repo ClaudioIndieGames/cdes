@@ -2,9 +2,10 @@
 #define __EVENT_H__
 
 #include <assert.h>
+#include <pthread.h>
 #include "array/array.h"
 
-typedef void (*task_t)(void);
+typedef void* (*task_t)(void*);
 
 typedef struct {
     array tasks;
@@ -35,6 +36,7 @@ void event_destroy(event* e) {
 
 typedef struct {
     array event_queue;
+    array threads;
     unsigned long sim_time;
 } event_scheduler;
 
@@ -42,6 +44,8 @@ event_scheduler* event_scheduler_create(event_scheduler* s) {
     assert(s && "Passed NULL event scheduler");
     // allocating space for 10 events by default
     array_create_semi_dynamic(&s->event_queue, sizeof(event), 10);
+    // allocating space for 2 threads by default
+    array_create_semi_dynamic(&s->threads, sizeof(pthread_t), 2);
     s->sim_time = 0;
     return s;
 }
@@ -82,7 +86,7 @@ event* event_scheduler_next(event_scheduler* s) {
     return NULL;
 }
 
-void event_scheduler_run(event_scheduler* s) {
+void event_scheduler_run_single(event_scheduler* s) {
     assert(s && "Passed NULL event scheduler");
     event* e_scheduled = event_scheduler_front(s);
     while (e_scheduled != NULL) {
@@ -90,9 +94,31 @@ void event_scheduler_run(event_scheduler* s) {
         array* tasks = event_tasks(e_scheduled);
         for (size_t i = 0; i < array_size(tasks); ++i) {
             task_t task = *(task_t*)array_at(tasks, i);
-            task();
+            task(NULL);
         }
         e_scheduled = event_scheduler_next(s);
+    }
+}
+
+void event_scheduler_run_multi(event_scheduler* s) {
+    assert(s && "Passed NULL event scheduler");
+    event* e_scheduled = event_scheduler_front(s);
+    while (e_scheduled != NULL) {
+        s->sim_time = e_scheduled->scheduled_time;
+        array* tasks = event_tasks(e_scheduled);
+        for (size_t i = 0; i < array_size(tasks); ++i) {
+            task_t task = *(task_t*)array_at(tasks, i);
+            pthread_t* thread = array_append_slot(&s->threads);
+            pthread_create(thread, NULL, task, NULL);
+        }
+        e_scheduled = event_scheduler_next(s);
+        if (e_scheduled == NULL || e_scheduled->scheduled_time > s->sim_time) {
+            for (size_t i = 0; i < array_size(&s->threads); ++i) {
+                pthread_join(*(pthread_t*)array_at(&s->threads, i), NULL);
+            }
+            array_clear(&s->threads);
+            e_scheduled = event_scheduler_front(s);
+        }
     }
 }
 
