@@ -5,14 +5,20 @@
 #include <pthread.h>
 #include "array/array.h"
 
-typedef void* (*thread_func_t)(void*);
+typedef void* (*pthread_func_t)(void*);
 typedef size_t simulation_time_t;
 
 typedef struct {
-    thread_func_t func;
+    pthread_func_t func;
     void* module;
     size_t priority;
 } task;
+
+typedef struct {
+    task* task;
+    void* arg;
+} thread_func;
+
 
 typedef struct {
     array funcs;
@@ -26,6 +32,7 @@ typedef struct {
 typedef struct {
     event* event;
     simulation_time_t scheduled_time;
+    void* arg;
 } scheduled_event;
 
 typedef struct {
@@ -38,7 +45,7 @@ typedef struct {
     simulation_time_t time;
 } simulation;
 
-task* task_create(task* t, thread_func_t func, void* module, size_t priority) {
+task* task_create(task* t, pthread_func_t func, void* module, size_t priority) {
     assert(t && "Passed NULL task");
     assert(func && "Passed NULL function pointer");
     assert(module && "Passed NULL module");
@@ -53,17 +60,34 @@ void task_destroy(task* t) {
     // nop
 }
 
+thread_func* thread_func_create(thread_func* tf, task* t, void* arg) {
+    assert(tf && "Passed NULL thread function");
+    assert(t && "Passed NULL task");
+    tf->task = t;
+    tf->arg = arg;
+    return tf;
+}
+
+void thread_func_destroy(thread_func* tf) {
+    assert(tf && "Passed NULL thread function");
+    // nop
+}
+
 thread* thread_create(thread* t) {
     assert(t && "Passed NULL thread");
     // allocating space for 2 func by default
-    array_create_semi_dynamic(&t->funcs, sizeof(thread_func_t), 2);
+    array_create_semi_dynamic(&t->funcs, sizeof(thread_func), 2);
     return t;
 }
 
-void thread_destroy(thread* t, bool join) {
+void thread_destroy(thread* t, bool single_threaded) {
     assert(t && "Passed NULL thread");
-    if (join) {
+    if (!single_threaded) {
         pthread_join(t->id, NULL);
+    }
+    for (size_t i = 0; i < array_size(&t->funcs); ++i) {
+        thread_func* tf = array_at(&t->funcs, i);
+        thread_func_destroy(tf);
     }
     array_destroy(&t->funcs);
 }
@@ -71,8 +95,8 @@ void thread_destroy(thread* t, bool join) {
 void* thread_main(void* arg) {
     array* funcs = arg;
     for (size_t i = 0; i < array_size(funcs); ++i) {
-        thread_func_t func = *(thread_func_t*)array_at(funcs, i);
-        func(NULL);
+        thread_func tf = *(thread_func*)array_at(funcs, i);
+        tf.task->func(tf.arg);
     }
     return NULL;
 }
@@ -97,43 +121,27 @@ void event_destroy(event* e) {
     array_destroy(&e->registered_tasks);
 }
 
-void insert_task_sorted(array* a, task* t) {
-    assert(a && "Passed NULL array");
-    assert(t && "Passed NULL task");
-    size_t pos = array_size(a);
-    for (size_t i = 0; i < array_size(a); ++i) {
-        task* tx = *(task**)array_at(a, i);
-        if (tx->module < t->module) {
-            pos = i;
-            break;
-        } else if (tx->module == t->module) {
-            if (tx->priority <= t->priority) {
-                pos = i;
-                break;
-            }
-        }
-    }
-    array_insert_copy(a, &t, pos);
-}
-
 void event_register_task(event* e, task* t) {
     assert(e && "Passed NULL event");
-    insert_task_sorted(&e->registered_tasks, t);
+    assert(t && "Passed NULL task");
+    array_append_copy(&e->registered_tasks, &t);
 }
 
-scheduled_event* scheduled_event_create(scheduled_event* e, event* event, simulation_time_t scheduled_time) {
-    assert(e && "Passed NULL scheduled event");
-    e->event = event;
-    e->scheduled_time = scheduled_time;
-    return e;
+scheduled_event* scheduled_event_create(scheduled_event* se, event* e, simulation_time_t scheduled_time, void* arg) {
+    assert(se && "Passed NULL scheduled event");
+    assert(e && "Passed NULL event");
+    se->event = e;
+    se->scheduled_time = scheduled_time;
+    se->arg = arg;
+    return se;
 }
 
-void scheduled_event_destroy(scheduled_event* e) {
-    assert(e && "Passed NULL scheduled event");
+void scheduled_event_destroy(scheduled_event* se) {
+    assert(se && "Passed NULL scheduled event");
     // nop
 }
 
-void event_notify(simulation* sim, event* e, simulation_time_t delay) {
+void event_notify(simulation* sim, event* e, simulation_time_t delay, void* arg) {
     assert(sim && "Passed NULL simulation");
     assert(e && "Passed NULL event");
     assert(delay && "Cannot notify with zero delay");
@@ -142,12 +150,12 @@ void event_notify(simulation* sim, event* e, simulation_time_t delay) {
         scheduled_event* se = array_at(&sim->scheduler.scheduled_events, i);
         if (se->scheduled_time > scheduled_time) {
             scheduled_event* new_se = array_insert_slot(&sim->scheduler.scheduled_events, i);
-            scheduled_event_create(new_se, e, scheduled_time);
+            scheduled_event_create(new_se, e, scheduled_time, arg);
             return;
         }
     }
     scheduled_event* new_se = array_append_slot(&sim->scheduler.scheduled_events);
-    scheduled_event_create(new_se, e, scheduled_time);
+    scheduled_event_create(new_se, e, scheduled_time, arg);
 }
 
 event_scheduler* event_scheduler_create(event_scheduler* s) {
@@ -200,71 +208,79 @@ void simulation_destroy(simulation* sim) {
     event_scheduler_destroy(&sim->scheduler);
 }
 
-void simulation_run(simulation* sim, bool single_threaded, array* sorted_tasks) {
-
-    // create threads
-    thread* th;
-    void* prev_module = NULL;
-    for (size_t i = 0; i < array_size(sorted_tasks); ++i) {
-        task* t = *(task**)array_at(sorted_tasks, i);
-        if (prev_module != t->module) {
-            th = array_append_slot(&sim->scheduler.threads);
-            thread_create(th);
-            prev_module = t->module;
-        }
-        array_append_copy(&th->funcs, &t->func);
-    }
-
-    // call threads
-    for (size_t i = 0; i < array_size(&sim->scheduler.threads); ++i) {
-        thread* t = array_at(&sim->scheduler.threads, i);
-        thread_run(t, single_threaded);
-    }
-
-    // destroy threads
-    for (size_t i = 0; i < array_size(&sim->scheduler.threads); ++i) { 
-        thread* t = array_at(&sim->scheduler.threads, i);
-        thread_destroy(t, !single_threaded);
-    }
-    array_clear(&sim->scheduler.threads);
-
-}
-
 void simulation_start(simulation* sim, bool single_threaded) {
     assert(sim && "Passed NULL simulation");
 
-    // array storing all the task pointers to call at a specific time, initial allocate of 10 elements
-    array* sorted_tasks = array_create_semi_dynamic(&(array){0}, sizeof(task*), 10);
-
-    // initialize sim time
+    // initialize simulation time with the scheduled time of the first event
     scheduled_event* se = event_scheduler_front(&sim->scheduler);
     if (se != NULL) { sim->time = se->scheduled_time; }
+
+    // iterate the scheduled events
     while (se != NULL) {
         
-        // merge the tasks of each event using the sorted_tasks array
+        // iterate the tasks registered to the current event
         array* rt = &se->event->registered_tasks;
         for (size_t i = 0; i < array_size(rt); ++i) {
             task* t = *(task**)array_at(rt, i);
-            insert_task_sorted(sorted_tasks, t);
+
+            // check if a thread for the active module already exist, and if not create it
+            thread* selected_thread = NULL;
+            for (size_t j = 0; j < array_size(&sim->scheduler.threads); ++j) {
+                thread* th = array_at(&sim->scheduler.threads, j);
+                if (!array_empty(&th->funcs)) {
+                    thread_func* tf = array_at(&th->funcs, 0);
+                    if (tf->task->module == t->module) {
+                        selected_thread = th;
+                        break;
+                    }
+                }
+            }
+            if (selected_thread == NULL) {
+                selected_thread = array_append_slot(&sim->scheduler.threads);
+                thread_create(selected_thread);
+            }
+
+            // insert the task sorted by priority in the selected thread
+            size_t pos = array_size(&selected_thread->funcs);
+            for (size_t j = 0; j < array_size(&selected_thread->funcs); ++j) {
+                thread_func* tf = array_at(&selected_thread->funcs, j);
+                if (tf->task->priority < t->priority) {
+                    pos = j;
+                    break;
+                }
+            }
+            thread_func* new_tf = array_insert_slot(&selected_thread->funcs, pos);
+            thread_func_create(new_tf, t, se->arg);
+
         }
 
+        // go to next event
         se = event_scheduler_next(&sim->scheduler);
 
-        // collect tasks until the sim time changes
+        // create threads until the simulation time changes or no more events are scheduled
         if (se == NULL || sim->time != se->scheduled_time) {
 
-            // run tasks
-            simulation_run(sim, single_threaded, sorted_tasks);
-            array_clear(sorted_tasks);
-            // after the run some events might have been triggered
-            if (se == NULL) { se = event_scheduler_front(&sim->scheduler); }
+            // run all threads
+            for (size_t i = 0; i < array_size(&sim->scheduler.threads); ++i) {
+                thread* t = array_at(&sim->scheduler.threads, i);
+                thread_run(t, single_threaded);
+            }
+
+            // destroy all threads
+            for (size_t i = 0; i < array_size(&sim->scheduler.threads); ++i) { 
+                thread* t = array_at(&sim->scheduler.threads, i);
+                thread_destroy(t, single_threaded);
+            }
+            array_clear(&sim->scheduler.threads);
+
+            // after the run some new events might have been triggered
+            se = event_scheduler_front(&sim->scheduler);
             
-            // update time
+            // update simulation time
             if (se != NULL) { sim->time = se->scheduled_time; }
         }
     }
 
-    array_destroy(sorted_tasks);
 }
 
 #endif  // __EVENT_H__

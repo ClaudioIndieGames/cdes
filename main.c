@@ -8,24 +8,26 @@ simulation sim;
 event e1;
 event e2;
 
+// some data
+int data1 = 42;
+int data2 = 69;
+
 // tasks
 task t1;
 void* task1(void* arg) {
-    printf("[%lds] Hi from task1 at thread %ld\n", sim.time, (unsigned long)pthread_self());
+    printf("[%lds] Hi from task1, received %d at thread %ld\n", sim.time, *(int*)arg, (unsigned long)pthread_self());
     return NULL;
 }
-
 task t3;
 void* task3(void* arg) {
-    printf("[%lds] Hi from task3 at thread %ld\n", sim.time, (unsigned long)pthread_self());
+    printf("[%lds] Hi from task3, received %d at thread %ld\n", sim.time, *(int*)arg, (unsigned long)pthread_self());
     return NULL;
 }
-
 task t2;
 void* task2(void* arg) {
-    printf("[%lds] Hi from task2 at thread %ld\n", sim.time, (unsigned long)pthread_self());
+    printf("[%lds] Hi from task2, received %d at thread %ld\n", sim.time, *(int*)arg, (unsigned long)pthread_self());
     event_register_task(&e2, &t3);
-    event_notify(&sim, &e2, 10);
+    event_notify(&sim, &e2, 10, &data2);
     return NULL;
 }
 
@@ -40,7 +42,7 @@ int main() {
 
     event_register_task(&e1, &t1);
     event_register_task(&e1, &t2);
-    event_notify(&sim, &e1, 10);
+    event_notify(&sim, &e1, 10, &data1);
 
     simulation_start(&sim, false);
 
