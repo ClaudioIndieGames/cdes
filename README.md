@@ -1,2 +1,2 @@
-# event
-Header-only C library that implements an event scheduler 
+# cdes
+C library for discrete-event simulation 
