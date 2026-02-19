@@ -53,7 +53,7 @@ ASFLAGS         :=
 
 # linker flags
 LDFLAGS_PRE     := 
-LDFLAGS_POST    := -L../../build -lcdes -lpthread
+LDFLAGS_POST    := -L../.. -lcdes -lpthread
 
 # object dump flags
 OBJDUMPFLAGS    := --source --all-headers --demangle --line-numbers --wide $(BIN)/$(EXE) > $(basename $(BIN)/$(EXE)).lst
@@ -74,7 +74,7 @@ MKDIRFLAGS      := -p
 
 # C files to compile
 CSRCS           := \
-	src/simple_message.c \
+	src/simple_port.c \
 	src/simple_cpu.c \
 	src/simple_memory.c \
 	src/simple_soc.c \
@@ -97,7 +97,7 @@ XASSRCS         :=
 
 # header files
 INCS            := \
-	include/simple_message.h \
+	include/simple_port.h \
 	include/simple_cpu.h \
 	include/simple_memory.h \
 	include/simple_soc.h

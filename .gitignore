@@ -1,3 +1,5 @@
-.vscode/
-build/
-test/simple_soc/build/
+/.vscode/
+/build/
+/*.a
+/examples/simple_soc/build/
+/TODO.md

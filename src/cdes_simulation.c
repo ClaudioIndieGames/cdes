@@ -24,7 +24,7 @@ void cdes_simulation_destroy(cdes_simulation* sim) {
     array_destroy(&sim->threads);
 }
 
-void cdes_simulation_start(cdes_simulation* sim, char is_single_threaded) {
+void cdes_simulation_start(cdes_simulation* sim, cdes_simulation_mode mode) {
     assert(sim && "Passed NULL simulation");
 
     // schedule the on simulation start event first
@@ -81,13 +81,13 @@ void cdes_simulation_start(cdes_simulation* sim, char is_single_threaded) {
             // run all threads
             for (size_t i = 0; i < array_size(&sim->threads); ++i) {
                 cdes_thread* t = array_at(&sim->threads, i);
-                cdes_thread_run(t, is_single_threaded);
+                cdes_thread_run(t, mode);
             }
 
             // destroy all threads
             for (size_t i = 0; i < array_size(&sim->threads); ++i) { 
                 cdes_thread* t = array_at(&sim->threads, i);
-                cdes_thread_destroy(t, is_single_threaded);
+                cdes_thread_destroy(t, mode);
             }
             array_clear(&sim->threads);
 
@@ -113,4 +113,9 @@ void cdes_simulation_event_notify(cdes_simulation* sim, cdes_event* e, cdes_time
     cdes_scheduled_event se;
     cdes_scheduled_event_create(&se, e, cdes_simulation_get_time(sim) + delay, args);
     cdes_event_queue_push_copy(&sim->eq, &se);
+}
+
+cdes_event* simulation_get_on_simulation_start_event(cdes_simulation* sim) {
+    assert(sim && "Passed NULL simulation");
+    return &sim->on_simulation_start_event;
 }

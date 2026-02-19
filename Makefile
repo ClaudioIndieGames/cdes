@@ -3,7 +3,7 @@
 ###############################################################################
 
 # executable name
-EXE             := libcdes.a
+EXE             := ../libcdes.a
 
 # build folder name
 BIN             := build
@@ -100,7 +100,6 @@ XASSRCS         :=
 INCS            := \
 	include/cdes.h \
 	include/cdes_time.h \
-	include/cdes_module.h \
 	include/cdes_event.h \
 	include/cdes_task.h \
 	include/cdes_thread.h \
@@ -205,4 +204,4 @@ bin:
 # remove previous build
 .PHONY: clean
 clean:
-	$(RM) $(RMFLAGS) $(BIN)
+	$(RM) $(RMFLAGS) $(BIN) $(BIN)/$(EXE)

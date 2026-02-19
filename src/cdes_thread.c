@@ -8,9 +8,9 @@ cdes_thread* cdes_thread_create(cdes_thread* t) {
     return t;
 }
 
-void cdes_thread_destroy(cdes_thread* t, char is_single_threaded) {
+void cdes_thread_destroy(cdes_thread* t, cdes_simulation_mode mode) {
     assert(t && "Passed NULL thread");
-    if (!is_single_threaded) {
+    if (mode == CDES_MULTI_THREADED) {
         pthread_join(t->id, NULL);
     }
     for (size_t i = 0; i < array_size(&t->funcs); ++i) {
@@ -30,8 +30,8 @@ void* cdes_thread_main(void* args) {
     return NULL;
 }
 
-void cdes_thread_run(cdes_thread* t, char is_single_threaded) {
-    if (!is_single_threaded) {
+void cdes_thread_run(cdes_thread* t, cdes_simulation_mode mode) {
+    if (mode == CDES_MULTI_THREADED) {
         pthread_create(&t->id, NULL, cdes_thread_main, &t->funcs);
     } else {
         cdes_thread_main(&t->funcs);

@@ -2,7 +2,6 @@
 #define __CDES_H__
 
 #include "cdes_time.h"
-#include "cdes_module.h"
 #include "cdes_task.h"
 #include "cdes_event.h"
 #include "cdes_thread.h"
