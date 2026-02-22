@@ -4,7 +4,7 @@
 #include "cdes_event_queue.h"
 
 typedef enum {
-    CDES_SINGLE_THREADED,
+    CDES_SINGLE_THREADED = 0,
     CDES_MULTI_THREADED
 } cdes_simulation_mode;
 

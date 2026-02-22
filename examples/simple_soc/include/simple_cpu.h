@@ -2,12 +2,12 @@
 #define __SIMPLE_CPU_H__
 
 #include "cdes.h"
-#include "simple_port.h"
+#include "simple_socket.h"
 
 typedef struct {
-    simple_port p;
+    simple_initiator_socket out;
     cdes_task on_sim_start;
-    cdes_task on_received_message;
+    cdes_task on_response_received;
     cdes_simulation* sim;
 } simple_cpu;
 

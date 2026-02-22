@@ -5,7 +5,7 @@ simple_soc* simple_soc_create(simple_soc* this, cdes_simulation* sim) {
     simple_memory_create(&this->mem, sim);
     this->sim = sim;
 
-    simple_port_connect(&this->cpu.p, &this->mem.p);
+    simple_initiator_socket_connect(&this->cpu.out, &this->mem.in);
 
     return this;
 }

@@ -2,11 +2,11 @@
 #define __SIMPLE_MEMORY_H__
 
 #include "cdes.h"
-#include "simple_port.h"
+#include "simple_socket.h"
 
 typedef struct {
-    simple_port p;
-    cdes_task on_received_message;
+    simple_target_socket in;
+    cdes_task on_request_received;
     cdes_simulation* sim;
 } simple_memory;
 

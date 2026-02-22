@@ -74,10 +74,8 @@ MKDIRFLAGS      := -p
 
 # C files to compile
 CSRCS           := \
-	src/simple_socket.c \
-	src/simple_cpu.c \
-	src/simple_memory.c \
-	src/simple_soc.c \
+	src/axi_socket.c \
+	src/simple_module.c \
 	src/main.c
 
 # additional C files to compile
@@ -97,10 +95,8 @@ XASSRCS         :=
 
 # header files
 INCS            := \
-	include/simple_socket.h \
-	include/simple_cpu.h \
-	include/simple_memory.h \
-	include/simple_soc.h
+	include/axi_socket.h \
+	include/simple_module.h
 
 # additional header files
 XINCS           := \

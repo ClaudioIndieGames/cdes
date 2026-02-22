@@ -7,47 +7,47 @@ static void* on_sim_start(void* module, void* args) {
     (void)args;
     simple_cpu* this = module;
 
-    simple_port_message* msg = simple_port_message_create(20);
+    simple_payload* payload = simple_payload_create(20);
     cdes_time delay = 10e-3;
-    msg->from = this;
-    strcpy(msg->data, "Hi Memory\0");
-    simple_port_send(&this->p, msg, delay);
+    payload->from = this;
+    strcpy(payload->data, "Hi Memory\0");
+    simple_initiator_socket_send_request(&this->out, payload, delay);
 
     printf("[%s, %ld, CPU] Sending '%s' in %s\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}),
         (unsigned long)pthread_self(),
-        msg->data,
+        payload->data,
         *cdes_time_to_string(delay, &(cdes_time_string){}));
 
     return NULL;
 }
 
-static void* on_receive_msg(void* module, void* args) {
+static void* on_response_received(void* module, void* args) {
     simple_cpu* this = module;
-    simple_port_message* msg = args;
+    simple_payload* payload = args;
 
     printf("[%s, %ld, CPU] Received '%s' from %p\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}),
         (unsigned long)pthread_self(),
-        msg->data,
-        msg->from);
+        payload->data,
+        payload->from);
     
-    simple_port_message_destroy(msg);
+    simple_payload_destroy(payload);
 
     return NULL;
 }
 
 simple_cpu* simple_cpu_create(simple_cpu* this, cdes_simulation* sim) {
     cdes_task_create(&this->on_sim_start, this, on_sim_start, 0);
-    cdes_task_create(&this->on_received_message, this, on_receive_msg, 1);
+    cdes_task_create(&this->on_response_received, this, on_response_received, 1);
     cdes_event_register_task(simulation_get_on_simulation_start_event(sim), &this->on_sim_start);
-    simple_port_create(&this->p, sim, &this->on_received_message);
+    simple_initiator_socket_create(&this->out, sim, &this->on_response_received);
     this->sim = sim;
     return this;
 }
 
 void simple_cpu_destroy(simple_cpu* this) {
     cdes_task_destroy(&this->on_sim_start);
-    cdes_task_destroy(&this->on_received_message);
-    simple_port_destroy(&this->p);
+    cdes_task_destroy(&this->on_response_received);
+    simple_initiator_socket_destroy(&this->out);
 }
