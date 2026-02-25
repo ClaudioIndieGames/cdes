@@ -3,4 +3,5 @@
 /*.a
 /examples/simple_soc/build/
 /examples/axi/build/
+/examples/pthread_wait/build/
 /TODO.md

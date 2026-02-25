@@ -13,7 +13,7 @@ static void* on_sim_start(void* module, void* arg) {
     payload->data_length = 64;
     payload->data = malloc(sizeof(char) * payload->data_length);
     cdes_time delay = 1e-3;
-    axi_initiator_socket_send(&this->out, payload, delay);
+    axi_protocol_engine_update(this->out.pe, payload, delay);
     printf("[%s, %ld, out] Sending read request in %s\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}), (unsigned long)pthread_self(), *cdes_time_to_string(delay, &(cdes_time_string){}));
     
@@ -27,10 +27,10 @@ static void* on_read_addr_start(void* module, void* arg) {
     printf("[%s, %ld, in] READ ADDR START\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}), (unsigned long)pthread_self());
 
-    axi_target_socket_update(&this->in, payload, 1e-3);
+    axi_protocol_engine_update(this->in.pe, payload, 1e-3);
 
     payload->data[0] = 42;
-    axi_target_socket_update(&this->in, payload, 10e-3);
+    axi_protocol_engine_update(this->in.pe, payload, 10e-3);
 
     return NULL;
 }
@@ -38,11 +38,12 @@ static void* on_read_addr_start(void* module, void* arg) {
 static void* on_read_addr_end(void* module, void* arg) {
     simple_module* this = module;
     axi_payload* payload = arg;
+    (void)payload;
 
     printf("[%s, %ld, out] READ ADDR END\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}), (unsigned long)pthread_self());
 
-    axi_initiator_socket_update(&this->out, payload, 1e-3);
+//    axi_protocol_engine_update(&this->out.pe, payload, 1e-3);
 
     return NULL;
 }
@@ -54,7 +55,7 @@ static void* on_read_data_start(void* module, void* arg) {
     printf("[%s, %ld, out] READ DATA START\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}), (unsigned long)pthread_self());
 
-    axi_initiator_socket_update(&this->out, payload, 1e-3);  
+    axi_protocol_engine_update(this->out.pe, payload, 1e-3);  
     
     return NULL;
 }
@@ -66,7 +67,7 @@ static void* on_read_data_end(void* module, void* arg) {
     printf("[%s, %ld, in] READ DATA END\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}), (unsigned long)pthread_self());
 
-    axi_target_socket_update(&this->in, payload, 1e-3);
+    axi_protocol_engine_update(this->in.pe, payload, 1e-3);
 
     return NULL;
 }
@@ -78,7 +79,7 @@ static void* on_read_data_last_start(void* module, void* arg) {
     printf("[%s, %ld, out] READ DATA LAST START\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}), (unsigned long)pthread_self());
 
-    axi_initiator_socket_update(&this->out, payload, 1e-3);
+    axi_protocol_engine_update(this->out.pe, payload, 1e-3);
 
     return NULL;  
 }
@@ -90,7 +91,7 @@ static void* on_read_data_last_end(void* module, void* arg) {
     printf("[%s, %ld, in] READ DATA LAST END\n",
         *cdes_time_to_string(cdes_simulation_get_time(this->sim), &(cdes_time_string){}), (unsigned long)pthread_self());
 
-    axi_target_socket_update(&this->in, payload, 1e-3); 
+//    axi_protocol_engine_update(this->in.pe, payload, 1e-3); 
 
     free(payload->data);
     axi_payload_destroy(payload);
