@@ -14,6 +14,7 @@ build/semaphore: build/semaphore.o
 	gcc -lpthread -o build/semaphore build/semaphore.o
 
 build/semaphore.o: semaphore.c
+	mkdir -p build
 	gcc -Wall -Wextra -g -c semaphore.c -o build/semaphore.o
 
 clean:

@@ -4,4 +4,6 @@
 /examples/simple_soc/build/
 /examples/axi/build/
 /examples/pthread_wait/build/
+/examples/pthread_module/build/
+/examples/state_machine/build/
 /TODO.md
